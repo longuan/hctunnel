@@ -4,8 +4,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cstring>
+#include <thread>
 #include <unistd.h>
 #include "server.h"
+#include "eventloop.h"
 #include "acceptor.h"
 #include "postman.h"
 #include "utils.h"
@@ -29,7 +31,9 @@ int Acceptor::start(int port)
     _listenport = port;
     if (::listen(_fd, SOMAXCONN) == -1)
         return E_FATAL;
-    std::cout << "[+] listening "
+    std::cout << "[" << std::this_thread::get_id();
+    std::cout << "][" << _loop->getThreadID();
+    std::cout << "] listening "
               << ":" << _listenport << std::endl;
     return E_OK;
 }
@@ -42,21 +46,20 @@ int Acceptor::acceptClient()
     int client_fd = ::accept(_fd, (sockaddr *)&client_addr, &addr_len);
     if (client_fd < 0)
     {
-        std::cout << "Acceptor::accept() error" << std::endl;
+        std::cout << "[" << std::this_thread::get_id();
+        std::cout << "][" << _loop->getThreadID();
+        std::cout << "] Acceptor::accept() error" << std::endl;
         return E_ERROR;
     }
-    std::cout << "accept a new client: " << inet_ntoa(client_addr.sin_addr)
+    std::cout << "[" << std::this_thread::get_id();
+    std::cout << "][" << _loop->getThreadID();
+    std::cout << "] accept a new client: " << inet_ntoa(client_addr.sin_addr)
               << ":" << client_addr.sin_port << " with fd " << client_fd
               << std::endl;
 
     Server *s = Server::getInstance();
     s->newConnectionCallback(LOCAL_POSTMAN, client_fd, client_addr);
     return E_OK;
-}
-
-void Acceptor::stop()
-{
-    ::close(_fd);
 }
 
 void Acceptor::handleEvent(int revents)
@@ -70,4 +73,11 @@ void Acceptor::handleEvent(int revents)
     {
         acceptClient();
     }
+}
+
+// TODO: 待完善
+void Acceptor::handleClose()
+{
+    Server *s = Server::getInstance();
+    s->delWatcher(this);
 }

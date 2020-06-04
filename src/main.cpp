@@ -5,5 +5,5 @@
 int main(int argc, char *argv[])
 {
     Server *s = Server::getInstance();
-    s->run();
+    s->start();
 }

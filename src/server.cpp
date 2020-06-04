@@ -7,32 +7,24 @@
 #include "eventloop.h"
 #include "acceptor.h"
 #include "postman.h"
+#include "threadpool.h"
 
-Server *Server::global_server = new Server();  // Server的单例
-
-Server *Server::getInstance()
-{
-    assert(global_server);
-    return global_server;
-}
+Server *Server::_global_server = new Server();  // Server的单例
 
 Server::Server()
 {
-    _loop = new EventLoop();
+    _main_loop = new EventLoop();
     _acceptor = new Acceptor();
-    if(_loop == nullptr || _acceptor == nullptr)
-    {
-        FATAL_ERROR("init Server error");
-    }
-    _status = 0; // ready to run;
+    _io_loops = new ThreadPool();
 }
 
 Server::~Server()
 {
-    _loop->stop();
-    delete _loop;
-    _acceptor->stop();
+    // 先删除EventLoop，再删除watchers
+    delete _main_loop;
+    delete _io_loops;
     delete _acceptor;
+
     for (auto &i : _watchers)
     {
         ::close(i.first);
@@ -44,39 +36,32 @@ Server::~Server()
     }
 }
 
-int Server::run(int port)
+int Server::start(int port)
 {
+    // add _accpetor into loop
+    _acceptor->setLoop(_main_loop);
+
     if (E_OK != _acceptor->start(port))
     {
         FATAL_ERROR("init Server error");
     }
-    _status = 1; // ready to loop;
 
-    // add _accpetor into loop
-    _acceptor->setLoop(_loop);
     _acceptor->addEvent(EPOLLIN);
-
-    while (_status == 1)
-    {
-        _loop->loop(1); // loop一下就停止
-    }
+    std::cout << "[*] main loop thread ID is: " << _main_loop->getThreadID() << std::endl;
+    _main_loop->loop();
     return E_OK;
-}
-
-void Server::stop()
-{
-    _loop->stop();
-    _acceptor->stop();
-    _status = -1; // stopped
 }
 
 void Server::newConnectionCallback(WATCHER_TYPE t, int fd, sockaddr_in& addr)
 {
-    // TODO: 选取一个loop
-    Postman *p = newPostman(t, fd, _loop);
+    EventLoop *loop = _io_loops->getNextLoop();
+    Postman *p = newPostman(t, fd, loop);
+    assert(p);
+    p->setStatus(CONNECTED);
     p->host = addr.sin_addr.s_addr;
     p->port = addr.sin_port;
     p->addEvent(EPOLLIN);
+    p->updateLastTime();
 }
 
 Postman *Server::newPostman(WATCHER_TYPE type, int fd, EventLoop *loop)
@@ -84,6 +69,7 @@ Postman *Server::newPostman(WATCHER_TYPE type, int fd, EventLoop *loop)
     if(fd <= 0 || loop == nullptr)
         return nullptr;
 
+    std::lock_guard lg(_mutex);
     if(_idle_postmans.empty())
     {
         Postman *p = new Postman(type);
@@ -105,6 +91,7 @@ Postman *Server::newPostman(WATCHER_TYPE type, int fd, EventLoop *loop)
 void Server::delPostman(Postman *p)
 {
     if(!p) return;
+    std::lock_guard lg(_mutex);
     if (_idle_postmans.size() < 64)
     {
         p->clear();
@@ -125,38 +112,46 @@ int Server::addWatcher(IOWatcher *w)
     // 设置fd非阻塞
     int flags = ::fcntl(fd, F_GETFL, 0);
     ::fcntl(fd, F_SETFL, flags|O_NONBLOCK|O_CLOEXEC);
-    
-    _watchers[fd] = w;
+    {
+        std::lock_guard lg(_mutex);
+        _watchers[fd] = w;
+    }
 
-    return _loop->registerWatcher(w);
+    return w->getLoop()->registerWatcher(w);
 }
 
 int Server::updWatcher(IOWatcher *w)
 {
+    std::unique_lock ul(_mutex);
     auto w_iter = _watchers.find(w->getFd());
     if (w_iter == _watchers.end())
     {
+        ul.unlock();
         return addWatcher(w);
     }
     IOWatcher *watcher = w_iter->second;
+    ul.unlock();
     assert(watcher == w);
 
-    _loop->updateWatcher(w);
+    w->getLoop()->updateWatcher(w);
     return E_OK;
 }
 
 int Server::delWatcher(IOWatcher *w)
 {
     if(!w) return E_CANCEL;
-    auto w_iter = _watchers.find(w->getFd());
-    if (w_iter == _watchers.end())
+    decltype(_watchers)::iterator w_iter;
     {
-        return E_CANCEL;
+        std::lock_guard lg(_mutex);
+        w_iter = _watchers.find(w->getFd());
+        if (w_iter == _watchers.end())
+        {
+            return E_CANCEL;
+        }
     }
-
     IOWatcher *watcher = w_iter->second;
     assert(watcher == w);
-    _loop->unRegisterWatcher(w);
+    w->getLoop()->unRegisterWatcher(w);
     ::close(w->getFd());
 
     if(w->getType() == LOCAL_POSTMAN)
@@ -170,6 +165,29 @@ int Server::delWatcher(IOWatcher *w)
         delPostman(dynamic_cast<Postman *>(w));
     }
     
-    _watchers.erase(w_iter);
+    {
+        std::lock_guard lg(_mutex);
+        _watchers.erase(w_iter);
+    }
     return E_OK;
+}
+
+void Server::timeoutCallback(int fd, std::chrono::system_clock::time_point &now)
+{
+    {
+	std::lock_guard lg(_mutex);
+	if(_watchers.find(fd) == _watchers.end())
+            return;
+    }
+    auto w = _watchers[fd];
+    if(w->getType() == LOCAL_POSTMAN || w->getType() == REMOTE_POSTMAN)
+    {
+        Postman *p = dynamic_cast<Postman*>(w);
+        auto duration = now - p->getLastTime();
+        // 超过1分钟未活动，就释放fd
+        if ( std::chrono::duration_cast<std::chrono::minutes>(duration).count() > 1)
+        {
+            delWatcher(p);
+        }
+    }
 }

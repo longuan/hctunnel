@@ -3,6 +3,7 @@
 #define __POSTMAN_H__
 
 #include <queue>
+#include <chrono>
 #include "eventhandler.h"
 #include "httpmsg.h"
 
@@ -59,6 +60,9 @@ public:
     int sendMsgToPeer(std::string_view msg);
     int enableReading();
 
+    auto getLastTime() {return _last_time;}
+    void updateLastTime(){_last_time = std::chrono::system_clock::now();};
+
     void clear();   // 清除内部状态
 
 private:
@@ -69,10 +73,14 @@ private:
     POSTMAN_STATUS _status;
     TUNNEL_TYPE _tunnel_type;
 
+    std::chrono::system_clock::time_point _last_time; // 此postman最后活动的时间点
+
     int __upstreamRead();
 
     int handleConnectMethod(HTTPMsgHeader&);
     int handleHTTPMsg(HTTPMsgHeader&);
+
+    virtual void handleClose() override;    // 在读取写入时出错，删除self
 
     void appendOut(std::string_view sv);
 };

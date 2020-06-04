@@ -12,6 +12,7 @@ class IOWatcher
 {
 public:
     virtual void handleEvent(int revents) = 0; // handleEvent根据event调用不同的函数，实现无callback化
+    virtual void handleClose() = 0;
 
     explicit IOWatcher(WATCHER_TYPE t):_fd(0),_events(0),_loop(nullptr),_type(t){};
     virtual ~IOWatcher() =default;
