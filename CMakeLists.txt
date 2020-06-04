@@ -26,8 +26,9 @@ set(SRC_FILES
     ./src/acceptor.cpp
     ./src/postman.cpp
     ./src/httpmsg.cpp
+    ./src/threadpool.cpp
 )
 
 ADD_EXECUTABLE(${PROJECT_NAME} ${SRC_FILES})
 
-# TARGET_LINK_LIBRARIES(${PROJECT_NAME} m)
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} pthread)
