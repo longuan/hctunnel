@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <thread>
+#include "postman.h"
 #include "eventhandler.h"
 #include "eventloop.h"
 #include "utils.h"
@@ -83,7 +84,6 @@ int EventLoop::unRegisterWatcher(IOWatcher *watcher)
     }
 }
 
-// flag为1，代表wait一次就返回，flag为0，代表无限wait
 // loop函数不用加锁
 void EventLoop::loop()
 {
@@ -93,14 +93,12 @@ void EventLoop::loop()
     do
     {
         while(_fds.size() == 0)
-            std::this_thread::yield();
-        int num = _epollptr->wait(&_firedEvents[0], _firedEvents.capacity(), -1);
-        // std::cout << "[*] got " << num << " events" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        int num = _epollptr->wait(&_firedEvents[0], _firedEvents.capacity(), 10);
         for (int i = 0; i < num; i++)
         {
             IOWatcher *w = static_cast<IOWatcher *>(_firedEvents[i].data.ptr);
             int events = _firedEvents[i].events;
-            // std::cout << events << " from " << w->getFd() << std::endl;
 
             // handle events
             if(w == nullptr)
@@ -112,16 +110,34 @@ void EventLoop::loop()
                 w->handleEvent(events);
             }
         }
-        auto now = std::chrono::system_clock::now();
-        Server *s = Server::getInstance();
-        for(auto &fd : _fds)
-        {
-            s->timeoutCallback(fd, now); // 看fd是否超时，如果超时就释放fd
-        }
+        timeoutCallback();
     } while (!_stop);
 }
 
 void EventLoop::stop()
 {
     _stop = true;
+}
+
+void EventLoop::timeoutCallback()
+{
+    Server *s = Server::getInstance();
+    auto now = std::chrono::system_clock::now();
+    for(auto& fd : _fds)
+    {
+        auto w_iter = s->watchers.find(fd);
+        if(w_iter == s->watchers.end()) continue;
+
+        IOWatcher *w = w_iter->second;
+        if (w->getType() == LOCAL_POSTMAN || w->getType() == REMOTE_POSTMAN)
+        {
+            Postman *p = dynamic_cast<Postman *>(w);
+            auto duration = now - p->getLastTime();
+            // 超过1分钟未活动，就释放fd
+            if (std::chrono::duration_cast<std::chrono::seconds>(duration).count() > 60)
+            {
+                s->delWatcher(p);
+            }
+        }
+    }
 }

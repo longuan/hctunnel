@@ -26,6 +26,8 @@ public:
     void loop();
     void stop();
 
+    void timeoutCallback();
+
     // 新增client fd
     int registerWatcher(IOWatcher *watcher);
     // 新增event或者删除event

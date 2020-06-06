@@ -11,7 +11,7 @@
 
 Server *Server::_global_server = new Server();  // Server的单例
 
-Server::Server()
+Server::Server():_last_count(std::pair<in_addr_t, int>(0,0))
 {
     _main_loop = new EventLoop();
     _acceptor = new Acceptor();
@@ -25,7 +25,7 @@ Server::~Server()
     delete _io_loops;
     delete _acceptor;
 
-    for (auto &i : _watchers)
+    for (auto &i : watchers)
     {
         ::close(i.first);
         delete i.second;
@@ -54,6 +54,22 @@ int Server::start(int port)
 
 void Server::newConnectionCallback(WATCHER_TYPE t, int fd, sockaddr_in& addr)
 {
+    if(addr.sin_addr.s_addr == _last_count.first)
+    {
+        if(_last_count.second >= 30)
+        {
+            ::close(fd);
+            std::cout << "connection refuse" << std::endl;
+            return;
+        }
+    }
+    else
+    {
+        _last_count.first = addr.sin_addr.s_addr;
+        _last_count.second = 0;
+    }
+    _last_count.second++;
+
     EventLoop *loop = _io_loops->getNextLoop();
     Postman *p = newPostman(t, fd, loop);
     assert(p);
@@ -92,6 +108,8 @@ void Server::delPostman(Postman *p)
 {
     if(!p) return;
     std::lock_guard lg(_mutex);
+    if (_last_count.first == p->host)
+        _last_count.second--;
     if (_idle_postmans.size() < 64)
     {
         p->clear();
@@ -104,17 +122,17 @@ void Server::delPostman(Postman *p)
 }
 
 // TODO: 每次addwatcher、updWatcher、delWatcher都会调用一次epoll_ctl，会不会影响性能
-// add、upd、delwatcher都分为两步：更新_watchers、更新相应的loop
+// add、upd、delwatcher都分为两步：更新watchers、更新相应的loop
 int Server::addWatcher(IOWatcher *w)
 {
     int fd = w->getFd();
-    assert(_watchers.find(fd) == _watchers.end());
+    assert(watchers.find(fd) == watchers.end());
     // 设置fd非阻塞
     int flags = ::fcntl(fd, F_GETFL, 0);
     ::fcntl(fd, F_SETFL, flags|O_NONBLOCK|O_CLOEXEC);
     {
         std::lock_guard lg(_mutex);
-        _watchers[fd] = w;
+        watchers[fd] = w;
     }
 
     return w->getLoop()->registerWatcher(w);
@@ -123,8 +141,8 @@ int Server::addWatcher(IOWatcher *w)
 int Server::updWatcher(IOWatcher *w)
 {
     std::unique_lock ul(_mutex);
-    auto w_iter = _watchers.find(w->getFd());
-    if (w_iter == _watchers.end())
+    auto w_iter = watchers.find(w->getFd());
+    if (w_iter == watchers.end())
     {
         ul.unlock();
         return addWatcher(w);
@@ -140,11 +158,11 @@ int Server::updWatcher(IOWatcher *w)
 int Server::delWatcher(IOWatcher *w)
 {
     if(!w) return E_CANCEL;
-    decltype(_watchers)::iterator w_iter;
+    decltype(watchers)::iterator w_iter;
     {
         std::lock_guard lg(_mutex);
-        w_iter = _watchers.find(w->getFd());
-        if (w_iter == _watchers.end())
+        w_iter = watchers.find(w->getFd());
+        if (w_iter == watchers.end())
         {
             return E_CANCEL;
         }
@@ -162,32 +180,13 @@ int Server::delWatcher(IOWatcher *w)
     }
     else if(w->getType() == REMOTE_POSTMAN)
     {
-        delPostman(dynamic_cast<Postman *>(w));
+        Postman *p = dynamic_cast<Postman *>(w);
+        delPostman(p);
     }
     
     {
         std::lock_guard lg(_mutex);
-        _watchers.erase(w_iter);
+        watchers.erase(w_iter);
     }
     return E_OK;
-}
-
-void Server::timeoutCallback(int fd, std::chrono::system_clock::time_point &now)
-{
-    {
-	std::lock_guard lg(_mutex);
-	if(_watchers.find(fd) == _watchers.end())
-            return;
-    }
-    auto w = _watchers[fd];
-    if(w->getType() == LOCAL_POSTMAN || w->getType() == REMOTE_POSTMAN)
-    {
-        Postman *p = dynamic_cast<Postman*>(w);
-        auto duration = now - p->getLastTime();
-        // 超过1分钟未活动，就释放fd
-        if ( std::chrono::duration_cast<std::chrono::minutes>(duration).count() > 1)
-        {
-            delWatcher(p);
-        }
-    }
 }

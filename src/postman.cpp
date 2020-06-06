@@ -63,7 +63,7 @@ int Postman::sendMsgToPeer(std::string_view msg)
 
 void Postman::appendOut(std::string_view sv)
 {
-    _outBuffers.push(std::string(sv));
+    _outBuffers.push(std::move(std::string(sv)));
 }
 
 int Postman::enableReading()
@@ -73,12 +73,16 @@ int Postman::enableReading()
 
 void Postman::handleEvent(int revents)
 {
+    
     updateLastTime();
-    int events = revents & _events;
-    if(events == 0)
+    if (revents & (EPOLLERR | EPOLLHUP))
+    {
+        handleClose();
         return;
+    }
+    int events = revents & _events;
 
-    if(events & EPOLLIN)
+    if((events & EPOLLIN) || (revents & EPOLLPRI) )
     {
         if(_type == LOCAL_POSTMAN)
             upstreamRead();
@@ -237,7 +241,7 @@ int Postman::upstreamWrite()
     {
         auto s = _outBuffers.front();
         _outBuffers.pop();
-        size_t nwrite = writeall(_fd, std::string_view(s));
+        auto nwrite = writeall(_fd, std::string_view(s));
         if(nwrite <= 0)
         {
             std::cout << "[" << std::this_thread::get_id();
@@ -291,7 +295,7 @@ int Postman::downstreamWrite()
     {
         auto s = _outBuffers.front();
         _outBuffers.pop();
-        size_t nwrite = writeall(_fd, std::string_view(s));
+        auto nwrite = writeall(_fd, std::string_view(s));
         if (nwrite <= 0)
         {
             std::cout << "[" << std::this_thread::get_id();
