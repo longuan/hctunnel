@@ -168,3 +168,14 @@ int connectHost(const in_addr &ip, const int port)
     }
     return -1;
 }
+
+int numOfsubstr(const std::string &str, const std::string &sub)
+{
+    int num = 0;
+    size_t len = sub.length();
+    if (len == 0)
+        len = 1; //应付空子串调用
+    for (size_t i = 0; (i = str.find(sub, i)) != std::string::npos; num++, i += len)
+        ;
+    return num;
+}

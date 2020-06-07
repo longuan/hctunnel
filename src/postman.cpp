@@ -43,7 +43,7 @@ int Postman::removeCurrentPeer()
     return E_OK;
 }
 
-int Postman::sendMsgToPeer(std::string_view msg)
+int Postman::sendMsgToPeer(std::string& msg)
 {
     if(peer_postman == nullptr)
         return E_ERROR;
@@ -56,14 +56,16 @@ int Postman::sendMsgToPeer(std::string_view msg)
     }
     else
     {
-        peer_postman->appendOut(msg);
+        std::string temp;
+        msg.swap(temp);
+        peer_postman->appendOut(temp);
         return peer_postman->addEvent(EPOLLOUT);
     }
 }
 
-void Postman::appendOut(std::string_view sv)
+void Postman::appendOut(std::string& s)
 {
-    _outBuffers.push(std::move(std::string(sv)));
+    _outBuffers.push(std::move(s));
 }
 
 int Postman::enableReading()
@@ -120,7 +122,7 @@ int Postman::__upstreamRead()
     {   
         if (status() == COMMUNICATING )
         {
-            sendMsgToPeer(std::string_view(_inBuffer));
+            sendMsgToPeer(_inBuffer);
             return E_OK;
         }
         else
@@ -132,14 +134,15 @@ int Postman::__upstreamRead()
         }
     }
     else if (msg_header.getType() == HTTP_CONNECT)
-    {
+    {   
+        assert(numOfsubstr(_inBuffer, "\r\n\r\n") == 1);
         // 删除现有peer_postman
         removeCurrentPeer();
         handleConnectMethod(msg_header);
     }
     else // 否则此消息就是HTTP请求
     {
-        setTunnelType(HTTP);
+        assert(numOfsubstr(_inBuffer, "\r\n\r\n") == 1);
         handleHTTPMsg(msg_header);
     }
     return E_OK;
@@ -169,7 +172,7 @@ int Postman::handleConnectMethod(HTTPMsgHeader& msg)
                             "FiddlerGateway : Direct\r\n"
                             "StartTime : 03:29:24.878\r\n"
                             "Connection : close\r\n\r\n"};
-        appendOut(std::string_view(response));
+        appendOut(response);
         addEvent(EPOLLOUT);
         setStatus(COMMUNICATING);
         return E_OK;
@@ -183,7 +186,7 @@ int Postman::handleHTTPMsg(HTTPMsgHeader& msg)
     if (peer_postman && (inet_addr(sv.data()) == peer_postman->host) &&
         (msg.getPort() == peer_postman->port))
     {
-        return sendMsgToPeer(msg.getMsg());
+        return sendMsgToPeer(_inBuffer);
     }
     else
     {
@@ -195,13 +198,13 @@ int Postman::handleHTTPMsg(HTTPMsgHeader& msg)
             std::cout << "][" << _loop->getThreadID();
             std::cout << "] unable to connect target domain 2" << std::endl;
             setStatus(DISCONNECTED);
-            setTunnelType(UNKNOWN);
             return E_CANCEL;
         }
         else
         {
             setStatus(COMMUNICATING);
-            return sendMsgToPeer(msg.getMsg());
+            setTunnelType(HTTP);
+            return sendMsgToPeer(_inBuffer);
         }
     }
 }
@@ -228,7 +231,6 @@ int Postman::upstreamRead()
         std::cout << "][" << _loop->getThreadID();
         std::cout << "] recv message from local, length: " << nread << std::endl;
         __upstreamRead();
-        _inBuffer.clear();
         return E_OK;
     }
 }
@@ -283,7 +285,7 @@ int Postman::downstreamRead()
         std::cout << "][" << _loop->getThreadID();
         std::cout << "] recv message from " << inet_ntoa(in_addr{host});
         std::cout << ", length: " << nread << std::endl;
-        sendMsgToPeer(std::string_view(_inBuffer));
+        sendMsgToPeer(_inBuffer);
         _inBuffer.clear();
         return E_OK;
     }

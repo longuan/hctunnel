@@ -57,7 +57,7 @@ public:
             peer_postman->setTunnelType(t);
     }
 
-    int sendMsgToPeer(std::string_view msg);
+    int sendMsgToPeer(std::string& msg);
     int enableReading();
 
     auto getLastTime() {return _last_time;}
@@ -67,7 +67,7 @@ public:
 
 private:
 
-    std::string _inBuffer;
+    std::string _inBuffer;         // 每次都将_inBuffer浅拷贝到_outBuffers，避免深拷贝
     std::queue<std::string> _outBuffers;
 
     POSTMAN_STATUS _status;
@@ -82,7 +82,7 @@ private:
 
     virtual void handleClose() override;    // 在读取写入时出错，删除self
 
-    void appendOut(std::string_view sv);
+    void appendOut(std::string& s);
 };
 
 #endif // __POSTMAN_H__

@@ -32,5 +32,6 @@ bool endswith(const std::string_view buf, const std::string &suffix);
 std::string_view headerValue(std::string_view msg_header, const std::string key);
 int getHostIp(const char *server_name, std::vector<in_addr> &ips);
 int connectHost(const in_addr& ip, const int port);
+int numOfsubstr(const std::string& str, const std::string& sub);
 
 #endif // __UTILS_H__
