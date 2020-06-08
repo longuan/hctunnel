@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <condition_variable>
 #include <thread>
 #include "epoller.h"
 
@@ -18,6 +19,7 @@ private:
     std::vector<int>            _fds;   // 此loop管理的所有fd
     std::vector<epoll_event>    _firedEvents;   // 存放已触发的事件
     std::mutex                  _mutex;
+    std::condition_variable     _cv;
     std::thread::id             _thread_id;
 
 public:

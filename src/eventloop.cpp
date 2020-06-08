@@ -36,12 +36,15 @@ int EventLoop::registerWatcher(IOWatcher *watcher)
             std::cout << "][" << getThreadID();
             std::cout << "] add fd " << watcher_fd << " into loop" << std::endl;
             _fds.push_back(watcher_fd);
-            return _epollptr->addEvent(watcher_fd, watcher->getEvents(), watcher);
+            _epollptr->addEvent(watcher_fd, watcher->getEvents(), watcher);
         }
         else
             //TODO: updateWatcher
             return E_CANCEL;
     }
+    if(_fds.size() == 1)
+        _cv.notify_one();
+    return E_OK;
 }
 
 int EventLoop::updateWatcher(IOWatcher *watcher)
@@ -92,8 +95,11 @@ void EventLoop::loop()
 
     do
     {
-        while(_fds.size() == 0)
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::unique_lock ul(_mutex);
+        _cv.wait(ul, [&]{return _fds.size()>0;});
+        ul.unlock();
+        // while(_fds.size() == 0)
+        //     std::this_thread::sleep_for(std::chrono::seconds(1));
         int num = _epollptr->wait(&_firedEvents[0], _firedEvents.capacity(), 10);
         for (int i = 0; i < num; i++)
         {
@@ -134,7 +140,7 @@ void EventLoop::timeoutCallback()
             Postman *p = dynamic_cast<Postman *>(w);
             auto duration = now - p->getLastTime();
             // 超过1分钟未活动，就释放fd
-            if (std::chrono::duration_cast<std::chrono::seconds>(duration).count() > 60)
+            if (std::chrono::duration_cast<std::chrono::seconds>(duration).count() > 64)
             {
                 s->delWatcher(p);
             }
