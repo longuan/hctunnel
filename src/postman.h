@@ -28,7 +28,7 @@ public:
     explicit Postman(WATCHER_TYPE type);
     virtual ~Postman();
 
-    virtual void handleEvent(int revents) override;
+    virtual void handleEvent(EVENT_TYPE revents) override;
 
     // local是本地与Server的socket连接
     Postman *setPeer(std::string_view dst_host, int dst_port);

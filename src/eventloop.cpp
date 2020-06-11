@@ -104,7 +104,7 @@ void EventLoop::loop()
         for (int i = 0; i < num; i++)
         {
             IOWatcher *w = static_cast<IOWatcher *>(_firedEvents[i].data.ptr);
-            int events = _firedEvents[i].events;
+            EVENT_TYPE events = _firedEvents[i].events;
 
             // handle events
             if(w == nullptr)

@@ -62,7 +62,7 @@ int Acceptor::acceptClient()
     return E_OK;
 }
 
-void Acceptor::handleEvent(int revents)
+void Acceptor::handleEvent(EVENT_TYPE revents)
 {
     if ((revents & _events) == 0)
     {

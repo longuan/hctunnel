@@ -3,7 +3,7 @@
 #include <fcntl.h>
 #include "epoller.h"
 
-int Epoll::addEvent(int fd, int event, void *data_ptr)
+int Epoll::addEvent(int fd, EVENT_TYPE event, void *data_ptr)
 {
     epoll_event e = {};
     e.data.ptr = data_ptr;
@@ -15,7 +15,7 @@ int Epoll::addEvent(int fd, int event, void *data_ptr)
     return E_OK;
 }
 
-int Epoll::updateEvent(int fd, int event, void *data_ptr)
+int Epoll::updateEvent(int fd, EVENT_TYPE event, void *data_ptr)
 {
     epoll_event e = {};
     e.data.ptr = data_ptr;

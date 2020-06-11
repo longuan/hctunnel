@@ -73,7 +73,7 @@ int Postman::enableReading()
     return addEvent(EPOLLIN);
 }
 
-void Postman::handleEvent(int revents)
+void Postman::handleEvent(EVENT_TYPE revents)
 {
     
     updateLastTime();
@@ -82,7 +82,7 @@ void Postman::handleEvent(int revents)
         handleClose();
         return;
     }
-    int events = revents & _events;
+    EVENT_TYPE events = revents & _events;
 
     if((events & EPOLLIN) || (revents & EPOLLPRI) )
     {
@@ -223,6 +223,7 @@ int Postman::upstreamRead()
         std::cout << "[" << std::this_thread::get_id();
         std::cout << "][" << _loop->getThreadID();
         std::cout << "] read error" << std::endl;
+        handleClose();
         return E_ERROR;
     }
     else

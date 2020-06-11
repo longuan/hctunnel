@@ -9,7 +9,7 @@
 #include <thread>
 #include "epoller.h"
 
-class IOWatcher ;
+class IOWatcher;
 
 class EventLoop
 {

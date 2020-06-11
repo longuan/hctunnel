@@ -12,8 +12,8 @@ private:
 public:
     Epoll();
     // watcher 作为epoll_event.data.ptr
-    int addEvent(int fd, int event, void *data_ptr);
-    int updateEvent(int fd, int event, void *data_ptr);
+    int addEvent(int fd, EVENT_TYPE event, void *data_ptr);
+    int updateEvent(int fd, EVENT_TYPE event, void *data_ptr);
     int removeFd(int fd);
     int wait(epoll_event *events, int maxevent, int timeout)
     {

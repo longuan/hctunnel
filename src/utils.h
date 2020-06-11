@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <netinet/in.h>
+#include <sys/epoll.h>
 
 void FATAL_ERROR(const char *msg);
 
@@ -22,6 +23,8 @@ enum WATCHER_TYPE
     REMOTE_POSTMAN,
     ACCEPTOR,
 };
+
+using EVENT_TYPE=decltype(epoll_event{}.events);
 
 ssize_t readall(int fd, std::string &inBuffer);
 ssize_t writeall(int fd, std::string_view outBuffer);

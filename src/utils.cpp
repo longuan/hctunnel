@@ -20,13 +20,12 @@ ssize_t readall(int fd, std::string &inBuffer)
     size_t length = 0;
     if (::ioctl(fd, FIONREAD, &length) < 0)
     {
-        std::cout << "[!] readall - ioctl error" << std::endl;
+        // ioctl error
         return -1;
     }
 
     if (length <= 0)
     {
-        std::cout << "[!] readAll error: got length -- " << length << std::endl;
         return 0;
     }
     inBuffer.resize(length);
@@ -34,7 +33,7 @@ ssize_t readall(int fd, std::string &inBuffer)
     int nread = 0;
     if ((nread = read(fd, inBuffer.data(), length)) < 0)
     { 
-        std::cout << "[!] read error" << std::endl;
+        perror("read error");
         // if (errno == EINTR || errno == EAGAIN)
         return -1;
     }

@@ -14,7 +14,7 @@ public:
     void stop();
     virtual ~Acceptor() =default;
 
-    virtual void handleEvent(int revents) override;
+    virtual void handleEvent(EVENT_TYPE revents) override;
     virtual void handleClose() override;
 
     int acceptClient();

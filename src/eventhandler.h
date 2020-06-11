@@ -11,7 +11,7 @@ class EventLoop;
 class IOWatcher
 {
 public:
-    virtual void handleEvent(int revents) = 0; // handleEvent根据event调用不同的函数，实现无callback化
+    virtual void handleEvent(EVENT_TYPE revents) = 0; // handleEvent根据event调用不同的函数，实现无callback化
     virtual void handleClose() = 0;
 
     explicit IOWatcher(WATCHER_TYPE t):_fd(0),_events(0),_loop(nullptr),_type(t){};
@@ -23,7 +23,7 @@ public:
     int getFd() const {return _fd;};
     EventLoop* setLoop(EventLoop *loop){if(_loop==nullptr)_loop=loop;return _loop;}
     EventLoop* getLoop() const {return _loop;}
-    int addEvent(int event)
+    int addEvent(EVENT_TYPE event)
     {
         if(event & _events)
             return E_CANCEL;
@@ -31,7 +31,7 @@ public:
         Server *s = Server::getInstance();
         return s->updWatcher(this);
     }
-    int delEvent(int event)
+    int delEvent(EVENT_TYPE event)
     {
         if(event & _events)
         {
@@ -41,13 +41,13 @@ public:
         }
         return E_CANCEL;
     }
-    int getEvents() const {return _events;}
+    EVENT_TYPE getEvents() const {return _events;}
     WATCHER_TYPE getType() const { return _type; }
     void setType(WATCHER_TYPE t) { _type = t; }
 
 protected:
     int _fd; // fd由server负责close
-    int _events; // 存储关于这个fd的所有感兴趣的event，虽然也可以通过遍历callbacks的key得到
+    EVENT_TYPE _events; // 存储关于这个fd的所有感兴趣的event，虽然也可以通过遍历callbacks的key得到
     EventLoop *_loop;
     WATCHER_TYPE _type;
 };
