@@ -165,6 +165,10 @@ int connectHost(const in_addr &ip, const int port)
     {
         return remote_fd;
     }
+    else
+    {
+        ::close(remote_fd);
+    }
     return -1;
 }
 

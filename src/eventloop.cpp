@@ -147,3 +147,19 @@ void EventLoop::timeoutCallback()
         }
     }
 }
+
+void EventLoop::addIpCache(std::string &host, in_addr &addr)
+{
+    if(_ips_cache.size() >= 1024)
+        _ips_cache.clear();
+    
+    _ips_cache[std::string(host)] = in_addr(addr);
+}
+
+in_addr EventLoop::getIpCache(std::string &host)
+{
+    if(_ips_cache.find(host) == _ips_cache.end())
+        return in_addr{0};
+    else
+        return _ips_cache[host];
+}

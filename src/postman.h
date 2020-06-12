@@ -65,7 +65,7 @@ public:
 
     void clear();   // 清除内部状态
     
-    virtual void handleClose() override;    // 在读取写入时出错，删除self
+    virtual void handleClose() override; // 在读取写入时出错，删除self
 
 private:
 

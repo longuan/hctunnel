@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 #include <condition_variable>
 #include <thread>
 #include "epoller.h"
@@ -21,6 +22,7 @@ private:
     std::mutex                  _mutex;
     std::condition_variable     _cv;
     std::thread::id             _thread_id;
+    std::unordered_map<std::string, in_addr> _ips_cache; // 缓存域名与ip的对应关系
 
 public:
     EventLoop();
@@ -38,6 +40,9 @@ public:
     int unRegisterWatcher(IOWatcher *watcher);
 
     std::thread::id getThreadID(){return _thread_id;}
+
+    void addIpCache(std::string& host, in_addr& addr);
+    in_addr getIpCache(std::string& host);
 };
 
 #endif // __EVENTLOOP_H__

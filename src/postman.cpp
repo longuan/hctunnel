@@ -156,7 +156,8 @@ int Postman::handleConnectMethod(HTTPMsgHeader& msg)
     {
         std::cout << "[" << std::this_thread::get_id();
         std::cout << "][" << _loop->getThreadID();
-        std::cout << "] unable to connect target domain" << std::endl;
+        std::cout << "] unable to connect target domain: ";
+        std::cout << msg.getHost() << std::endl;
         setStatus(DISCONNECTED);
         setTunnelType(UNKNOWN);
         return E_CANCEL;
@@ -317,27 +318,39 @@ int Postman::downstreamWrite()
 
 Postman *Postman::setPeer(std::string_view dst_host, int dst_port)
 {
-    std::vector<in_addr> ips;
     std::string host(dst_host);
-    getHostIp(host.c_str(), ips);
-
+    EventLoop *loop = _loop;
     int peer_fd = 0;
-    in_addr_t addr;
-    for (auto &i : ips)
-    { // 尝试哪个ip可用
-        if((peer_fd = connectHost(i, dst_port)) > 0)
-        {
-            addr = i.s_addr;
-            break;
+
+    in_addr addr = _loop->getIpCache(host);
+
+    if(addr.s_addr == 0)
+    {
+        std::vector<in_addr> ips;
+        getHostIp(host.c_str(), ips);
+
+        for (auto &i : ips)
+        { // 尝试哪个ip可用
+            if ((peer_fd = connectHost(i, dst_port)) > 0)
+            {
+                addr.s_addr = i.s_addr;
+                loop->addIpCache(host, addr);
+                break;
+            }
         }
     }
-    if(peer_fd <= 0)
+    else
+    {
+        peer_fd = connectHost(addr, dst_port);
+    }
+    // ip都不可用
+    if (peer_fd <= 0)
         return nullptr;
 
     // 从Server取得Postman
     Server *s = Server::getInstance();
     Postman *p = s->newPostman(REMOTE_POSTMAN, peer_fd, _loop);
-    p->host = addr;
+    p->host = addr.s_addr;
     p->port = dst_port;
     p->peer_postman = this;
     p->updateLastTime();
