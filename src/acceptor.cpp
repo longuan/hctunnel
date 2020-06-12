@@ -46,9 +46,7 @@ int Acceptor::acceptClient()
     int client_fd = ::accept(_fd, (sockaddr *)&client_addr, &addr_len);
     if (client_fd < 0)
     {
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] Acceptor::accept() error" << std::endl;
+        perror("accetp error");
         return E_ERROR;
     }
     std::cout << "[" << std::this_thread::get_id();

@@ -64,6 +64,8 @@ public:
     void updateLastTime(){_last_time = std::chrono::system_clock::now();};
 
     void clear();   // 清除内部状态
+    
+    virtual void handleClose() override;    // 在读取写入时出错，删除self
 
 private:
 
@@ -79,8 +81,6 @@ private:
 
     int handleConnectMethod(HTTPMsgHeader&);
     int handleHTTPMsg(HTTPMsgHeader&);
-
-    virtual void handleClose() override;    // 在读取写入时出错，删除self
 
     void appendOut(std::string& s);
 };

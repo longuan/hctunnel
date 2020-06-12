@@ -142,7 +142,7 @@ void EventLoop::timeoutCallback()
             // 超过1分钟未活动，就释放fd
             if (std::chrono::duration_cast<std::chrono::seconds>(duration).count() > 64)
             {
-                s->delWatcher(p);
+                p->handleClose();
             }
         }
     }
