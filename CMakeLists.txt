@@ -27,6 +27,7 @@ set(SRC_FILES
     ./src/postman.cpp
     ./src/httpmsg.cpp
     ./src/threadpool.cpp
+    ./src/eventhandler.cpp
 )
 
 ADD_EXECUTABLE(${PROJECT_NAME} ${SRC_FILES})

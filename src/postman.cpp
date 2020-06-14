@@ -28,6 +28,7 @@ Postman::~Postman()
     {
         removeCurrentPeer();
     }
+    clear();
 }
 
 int Postman::removeCurrentPeer()
@@ -239,6 +240,11 @@ int Postman::upstreamRead()
 
 int Postman::upstreamWrite()
 {
+    if(peer_postman == nullptr)
+    {
+        handleClose();
+        return E_CANCEL;
+    }
     assert(status() == COMMUNICATING && peer_postman->status() == COMMUNICATING);
 
     while (!_outBuffers.empty())
@@ -265,6 +271,11 @@ int Postman::upstreamWrite()
 
 int Postman::downstreamRead()
 {
+    if(peer_postman == nullptr)
+    {
+        handleClose();
+        return E_CANCEL;
+    }
     assert(status() == COMMUNICATING && peer_postman->status() == COMMUNICATING);
     auto nread = readall(_fd, _inBuffer);
     if (nread == 0)
@@ -319,7 +330,6 @@ int Postman::downstreamWrite()
 Postman *Postman::setPeer(std::string_view dst_host, int dst_port)
 {
     std::string host(dst_host);
-    EventLoop *loop = _loop;
     int peer_fd = 0;
 
     in_addr addr = _loop->getIpCache(host);
@@ -334,7 +344,7 @@ Postman *Postman::setPeer(std::string_view dst_host, int dst_port)
             if ((peer_fd = connectHost(i, dst_port)) > 0)
             {
                 addr.s_addr = i.s_addr;
-                loop->addIpCache(host, addr);
+                _loop->addIpCache(host, addr);
                 break;
             }
         }
@@ -347,19 +357,21 @@ Postman *Postman::setPeer(std::string_view dst_host, int dst_port)
     if (peer_fd <= 0)
         return nullptr;
 
-    // 从Server取得Postman
-    Server *s = Server::getInstance();
-    Postman *p = s->newPostman(REMOTE_POSTMAN, peer_fd, _loop);
-    p->host = addr.s_addr;
-    p->port = dst_port;
+    sockaddr_in temp{0};
+    temp.sin_addr = addr;
+    temp.sin_port = dst_port;
+    Postman *p = _loop->addFd(REMOTE_POSTMAN, peer_fd, temp, EPOLLIN | EPOLLOUT);
+    // 从loop取得Postman
+    assert(p);
     p->peer_postman = this;
-    p->updateLastTime();
     peer_postman = p;
     return p;
 }
 
+// 相当于析构函数
 void Postman::clear()
 {
+    if(_fd) ::close(_fd);
     _fd = 0;
     _events = 0;
     _loop = nullptr;
@@ -370,19 +382,16 @@ void Postman::clear()
     host = 0;
     port = 0;
     peer_postman = nullptr;
-    _events = 0;
 }
 
 void Postman::handleClose()
 {
-    if(_type == REMOTE_POSTMAN)
+    Postman *peer = peer_postman;
+    if (peer)
     {
-        Postman *local_p = peer_postman;
-        assert(local_p);
-        local_p->setStatus(DISCONNECTED);
-        local_p->setTunnelType(UNKNOWN);
-        local_p->peer_postman = nullptr;
+        peer->setStatus(DISCONNECTED);
+        peer->setTunnelType(UNKNOWN);
+        peer->peer_postman = nullptr;
     }
-    Server *s = Server::getInstance();
-    s->delWatcher(this);
+    _loop->deleteFd(_fd);
 }

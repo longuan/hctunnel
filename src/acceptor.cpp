@@ -9,14 +9,10 @@
 #include "server.h"
 #include "eventloop.h"
 #include "acceptor.h"
-#include "postman.h"
 #include "utils.h"
 
 int Acceptor::start(int port)
 {
-    _fd = ::socket(PF_INET, SOCK_STREAM , 0);
-    if (_fd < 0)
-        return E_FATAL;
     int reuse = 1;
     ::setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, (const void *)&reuse, sizeof(int));
 
@@ -76,6 +72,5 @@ void Acceptor::handleEvent(EVENT_TYPE revents)
 // TODO: 待完善
 void Acceptor::handleClose()
 {
-    Server *s = Server::getInstance();
-    s->delWatcher(this);
+    _loop->deleteFd(_fd);
 }

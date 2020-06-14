@@ -2,9 +2,7 @@
 #ifndef __EVENTHANDLER_H__
 #define __EVENTHANDLER_H__
 
-#include <unordered_map>
-#include <functional>
-#include "server.h"
+#include "utils.h"
 
 class EventLoop;
 
@@ -23,25 +21,11 @@ public:
     int getFd() const {return _fd;};
     EventLoop* setLoop(EventLoop *loop){if(_loop==nullptr)_loop=loop;return _loop;}
     EventLoop* getLoop() const {return _loop;}
-    int addEvent(EVENT_TYPE event)
-    {
-        if(event & _events)
-            return E_CANCEL;
-        _events |= event;
-        Server *s = Server::getInstance();
-        return s->updWatcher(this);
-    }
-    int delEvent(EVENT_TYPE event)
-    {
-        if(event & _events)
-        {
-            _events &= (~event);
-            Server *s = Server::getInstance();
-            return s->updWatcher(this);
-        }
-        return E_CANCEL;
-    }
+    int addEvent(EVENT_TYPE event);
+    int delEvent(EVENT_TYPE event);
+
     EVENT_TYPE getEvents() const {return _events;}
+    void setEvents(EVENT_TYPE events){_events=events;}
     WATCHER_TYPE getType() const { return _type; }
     void setType(WATCHER_TYPE t) { _type = t; }
 

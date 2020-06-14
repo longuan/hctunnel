@@ -9,7 +9,12 @@ class Acceptor : public IOWatcher
 private:
     int _listenport;
 public:
-    Acceptor():IOWatcher(ACCEPTOR),_listenport(0){};
+    Acceptor():IOWatcher(ACCEPTOR),_listenport(0)
+    {
+        _fd = ::socket(PF_INET, SOCK_STREAM, 0);
+        if (_fd < 0)
+            FATAL_ERROR("Acceptor socket error");
+    };
     int start(int port);
     void stop();
     virtual ~Acceptor() =default;
