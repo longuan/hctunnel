@@ -39,8 +39,8 @@ int HTTPMsgHeader::parseHeader(std::string_view msg)
     if (_dst_host.size() == 0)
     {
         // 否则从request line中的url中解析出host:port
-        auto space2_idx = reqline.find(' ', space1_idx+1);
-        auto url = reqline.substr(space1_idx+1, space2_idx-space1_idx-1);
+        // auto space2_idx = reqline.find(' ', space1_idx+1);
+        // auto url = reqline.substr(space1_idx+1, space2_idx-space1_idx-1);
         return E_ERROR;
     }
     auto i = _dst_host.find(':');

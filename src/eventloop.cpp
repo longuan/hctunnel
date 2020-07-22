@@ -102,7 +102,6 @@ void EventLoop::fdReify()
     }
     upd_list.clear();
     unreg_list.clear();
-    assert(unreg_list.size() == 0);
 }
 
 // 此函数只可能在两个线程中被调用，主线程和当前loop线程

@@ -119,6 +119,7 @@ int Postman::__upstreamRead()
         std::cout << msg_header.getMsg() << std::endl;
         return E_ERROR;
     }
+    
     if (msg_header.getType() == HTTPS_DATA)
     {   
         if (status() == COMMUNICATING )
@@ -135,15 +136,19 @@ int Postman::__upstreamRead()
         }
     }
     else if (msg_header.getType() == HTTP_CONNECT)
-    {   
-        assert(numOfsubstr(_inBuffer, "\r\n\r\n") == 1);
+    {
+        if (numOfsubstr(_inBuffer, "\r\n\r\n") != 1)
+            return E_CANCEL;
+
         // 删除现有peer_postman
         removeCurrentPeer();
         handleConnectMethod(msg_header);
     }
     else // 否则此消息就是HTTP请求
     {
-        assert(numOfsubstr(_inBuffer, "\r\n\r\n") == 1);
+        if (numOfsubstr(_inBuffer, "\r\n\r\n") != 1)
+            return E_CANCEL;
+
         handleHTTPMsg(msg_header);
     }
     return E_OK;
@@ -159,8 +164,7 @@ int Postman::handleConnectMethod(HTTPMsgHeader& msg)
         std::cout << "][" << _loop->getThreadID();
         std::cout << "] unable to connect target domain: ";
         std::cout << msg.getHost() << std::endl;
-        setStatus(DISCONNECTED);
-        setTunnelType(UNKNOWN);
+        handleClose();
         return E_CANCEL;
     }
     else
@@ -199,7 +203,7 @@ int Postman::handleHTTPMsg(HTTPMsgHeader& msg)
             std::cout << "[" << std::this_thread::get_id();
             std::cout << "][" << _loop->getThreadID();
             std::cout << "] unable to connect target domain 2" << std::endl;
-            setStatus(DISCONNECTED);
+            handleClose();
             return E_CANCEL;
         }
         else
@@ -234,6 +238,7 @@ int Postman::upstreamRead()
         std::cout << "][" << _loop->getThreadID();
         std::cout << "] recv message from local, length: " << nread << std::endl;
         __upstreamRead();
+        _inBuffer.clear();
         return E_OK;
     }
 }
@@ -393,5 +398,6 @@ void Postman::handleClose()
         peer->setTunnelType(UNKNOWN);
         peer->peer_postman = nullptr;
     }
+    peer_postman = nullptr;
     _loop->deleteFd(_fd);
 }
