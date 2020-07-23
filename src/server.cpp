@@ -41,22 +41,29 @@ int Server::start(int port)
 
 void Server::newConnectionCallback(WATCHER_TYPE t, int fd, sockaddr_in& addr)
 {
-    if(addr.sin_addr.s_addr == _last_count.first)
-    {
-        if(_last_count.second >= 30)
-        {
-            ::close(fd);
-            std::cout << "connection refuse" << std::endl;
-            return;
-        }
-    }
-    else
-    {
-        _last_count.first = addr.sin_addr.s_addr;
-        _last_count.second = 0;
-    }
-    _last_count.second++;
+    // if(addr.sin_addr.s_addr == _last_count.first)
+    // {
+    //     if(_last_count.second >= 30)
+    //     {
+    //         ::close(fd);
+    //         std::cout << "connection refuse" << std::endl;
+    //         return;
+    //     }
+    // }
+    // else
+    // {
+    //     _last_count.first = addr.sin_addr.s_addr;
+    //     _last_count.second = 0;
+    // }
+    // _last_count.second++;
 
     EventLoop *loop = _io_loops->getNextLoop();
-    loop->addFd(t, fd, addr, EPOLLIN);
+    Postman *p = loop->newPostman(t, fd);
+    assert(p);
+    p->host = addr.sin_addr.s_addr;
+    p->port = addr.sin_port;
+    p->updateLastTime();
+    p->setEvents(EPOLLIN);
+
+    loop->addFd(p);
 }

@@ -48,7 +48,7 @@ public:
 
     void timeoutCallback();
 
-    Postman *addFd(WATCHER_TYPE t, int fd, sockaddr_in &addr, EVENT_TYPE init_event);
+    int addFd(Postman *p);
     int updateFd(int fd);
     int deleteFd(int fd);
 

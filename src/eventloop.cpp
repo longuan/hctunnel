@@ -36,6 +36,7 @@ EventLoop::~EventLoop()
     // _fdchanges是否还需要释放
 }
 
+// newPostman是会被跨线程访问的函数
 Postman* EventLoop::newPostman(WATCHER_TYPE type, int fd)
 {
     assert(fd>0);
@@ -104,7 +105,6 @@ void EventLoop::fdReify()
     unreg_list.clear();
 }
 
-// 此函数只可能在两个线程中被调用，主线程和当前loop线程
 int EventLoop::registerWatcher(IOWatcher *watcher)
 {
     assert(!_stop);
@@ -117,9 +117,9 @@ int EventLoop::registerWatcher(IOWatcher *watcher)
     // 设置fd非阻塞
     int flags = ::fcntl(watcher_fd, F_GETFL, 0);
     ::fcntl(watcher_fd, F_SETFL, flags | O_NONBLOCK | O_CLOEXEC);
-    std::cout << "[" << std::this_thread::get_id();
-    std::cout << "][" << getThreadID();
-    std::cout << "] add fd " << watcher_fd << " into loop" << std::endl;
+    // std::cout << "[" << std::this_thread::get_id();
+    // std::cout << "][" << getThreadID();
+    // std::cout << "] add fd " << watcher_fd << " into loop" << std::endl;
     _watchers[watcher_fd] = watcher;
     watcher->setLoop(this);
     return _epollptr->addEvent(watcher_fd, watcher->getEvents(), watcher);
@@ -158,9 +158,9 @@ int EventLoop::unRegisterWatcher(IOWatcher *watcher)
     }
     
 
-    std::cout << "[" << std::this_thread::get_id();
-    std::cout << "][" << getThreadID();
-    std::cout << "] del fd " << watcher_fd << " from loop" << std::endl;
+    // std::cout << "[" << std::this_thread::get_id();
+    // std::cout << "][" << getThreadID();
+    // std::cout << "] del fd " << watcher_fd << " from loop" << std::endl;
     _watchers.erase(_watchers.find(watcher_fd));
     _epollptr->removeFd(watcher_fd);
 
@@ -232,27 +232,17 @@ void EventLoop::timeoutCallback()
     }
 }
 
-// addFd是唯一一个会被跨线程访问的函数，因此addFd函数访问的任何成员变量在任何地方都要加锁
-// 因此_fdchanges、_idle_postman、_stop在其他地方也要加锁
-Postman* EventLoop::addFd(WATCHER_TYPE t, int fd, sockaddr_in &addr, EVENT_TYPE init_event)
+// addFd是会被跨线程访问的函数
+// 因此_fdchanges、_stop在其他地方也要加锁
+int EventLoop::addFd(Postman* p)
 {
-    assert(_watchers.find(fd) == _watchers.end());
-    assert(t == LOCAL_POSTMAN || t == REMOTE_POSTMAN);
-    Postman *p = newPostman(t, fd);
-    assert(p);
-    p->setStatus(CONNECTED);
-    p->host = addr.sin_addr.s_addr;
-    p->port = addr.sin_port;
-    p->updateLastTime();
-    p->setEvents(init_event);
-
     {
         std::lock_guard lg(_mutex);
         _fdchanges[0].push_back(p);
         _stop = false;
     }
     _cv.notify_one();
-    return p;
+    return E_OK;
 }
 
 int EventLoop::updateFd(int fd)

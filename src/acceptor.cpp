@@ -27,10 +27,10 @@ int Acceptor::start(int port)
     _listenport = port;
     if (::listen(_fd, SOMAXCONN) == -1)
         return E_FATAL;
-    std::cout << "[" << std::this_thread::get_id();
-    std::cout << "][" << _loop->getThreadID();
-    std::cout << "] listening "
-              << ":" << _listenport << std::endl;
+    // std::cout << "[" << std::this_thread::get_id();
+    // std::cout << "][" << _loop->getThreadID();
+    // std::cout << "] listening "
+    //           << ":" << _listenport << std::endl;
     return E_OK;
 }
 
@@ -42,18 +42,27 @@ int Acceptor::acceptClient()
     int client_fd = ::accept(_fd, (sockaddr *)&client_addr, &addr_len);
     if (client_fd < 0)
     {
-        perror("accetp error");
+        if (errno == EMFILE)
+        {
+            ::close(_idlefd);
+            _idlefd = ::accept(_fd, NULL, NULL);
+            ::close(_idlefd);
+            _idlefd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+        }
         return E_ERROR;
     }
-    std::cout << "[" << std::this_thread::get_id();
-    std::cout << "][" << _loop->getThreadID();
-    std::cout << "] accept a new client: " << inet_ntoa(client_addr.sin_addr)
-              << ":" << client_addr.sin_port << " with fd " << client_fd
-              << std::endl;
+    else
+    {
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] accept a new client: " << inet_ntoa(client_addr.sin_addr)
+        //           << ":" << client_addr.sin_port << " with fd " << client_fd
+        //           << std::endl;
 
-    Server *s = Server::getInstance();
-    s->newConnectionCallback(LOCAL_POSTMAN, client_fd, client_addr);
-    return E_OK;
+        Server *s = Server::getInstance();
+        s->newConnectionCallback(LOCAL_POSTMAN, client_fd, client_addr);
+        return E_OK;
+    }
 }
 
 void Acceptor::handleEvent(EVENT_TYPE revents)

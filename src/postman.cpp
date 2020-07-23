@@ -113,10 +113,10 @@ int Postman::__upstreamRead()
 
     if(msg_header.parseHeader(_inBuffer) == E_ERROR)
     {
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] cannot parse host:port from HostStr" << std::endl;
-        std::cout << msg_header.getMsg() << std::endl;
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] cannot parse host:port from HostStr" << std::endl;
+        // std::cout << msg_header.getMsg() << std::endl;
         return E_ERROR;
     }
     
@@ -129,9 +129,9 @@ int Postman::__upstreamRead()
         }
         else
         {
-            std::cout << "[" << std::this_thread::get_id();
-            std::cout << "][" << _loop->getThreadID();
-            std::cout << "] HTTPS tunnel not connect" << std::endl;
+            // std::cout << "[" << std::this_thread::get_id();
+            // std::cout << "][" << _loop->getThreadID();
+            // std::cout << "] HTTPS tunnel not connect" << std::endl;
             return E_ERROR;
         }
     }
@@ -160,10 +160,10 @@ int Postman::handleConnectMethod(HTTPMsgHeader& msg)
     auto peer = setPeer(msg.getHost(), msg.getPort());
     if(peer == nullptr)
     {
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] unable to connect target domain: ";
-        std::cout << msg.getHost() << std::endl;
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] unable to connect target domain: ";
+        // std::cout << msg.getHost() << std::endl;
         handleClose();
         return E_CANCEL;
     }
@@ -171,9 +171,9 @@ int Postman::handleConnectMethod(HTTPMsgHeader& msg)
     {
         setStatus(CONNECTED);
         setTunnelType(HTTPS);
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] connect to target domain successfully" << std::endl;
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] connect to target domain successfully" << std::endl;
         std::string response{"HTTP/1.1 200 Connection Established\r\n"
                             "FiddlerGateway : Direct\r\n"
                             "StartTime : 03:29:24.878\r\n"
@@ -200,9 +200,9 @@ int Postman::handleHTTPMsg(HTTPMsgHeader& msg)
         auto peer = setPeer(msg.getHost(), msg.getPort());
         if (peer == nullptr)
         {
-            std::cout << "[" << std::this_thread::get_id();
-            std::cout << "][" << _loop->getThreadID();
-            std::cout << "] unable to connect target domain 2" << std::endl;
+            // std::cout << "[" << std::this_thread::get_id();
+            // std::cout << "][" << _loop->getThreadID();
+            // std::cout << "] unable to connect target domain 2" << std::endl;
             handleClose();
             return E_CANCEL;
         }
@@ -226,17 +226,17 @@ int Postman::upstreamRead()
     }
     else if(nread == -1)
     {
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] read error" << std::endl;
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] read error" << std::endl;
         handleClose();
         return E_ERROR;
     }
     else
     {
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] recv message from local, length: " << nread << std::endl;
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] recv message from local, length: " << nread << std::endl;
         __upstreamRead();
         _inBuffer.clear();
         return E_OK;
@@ -259,16 +259,16 @@ int Postman::upstreamWrite()
         auto nwrite = writeall(_fd, std::string_view(s));
         if(nwrite <= 0)
         {
-            std::cout << "[" << std::this_thread::get_id();
-            std::cout << "][" << _loop->getThreadID();
-            std::cout << "] write error" << std::endl;
+            // std::cout << "[" << std::this_thread::get_id();
+            // std::cout << "][" << _loop->getThreadID();
+            // std::cout << "] write error" << std::endl;
             handleClose();
             return E_ERROR;
         }
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] send message to " << inet_ntoa(in_addr{host}); 
-        std::cout << ", length: " << nwrite << std::endl;
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] send message to " << inet_ntoa(in_addr{host}); 
+        // std::cout << ", length: " << nwrite << std::endl;
     }
     delEvent(EPOLLOUT);
     return enableReading();
@@ -291,18 +291,18 @@ int Postman::downstreamRead()
     }
     else if (nread == -1)
     {
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] read error" << std::endl;
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] read error" << std::endl;
         handleClose();
         return E_ERROR;
     }
     else
     {
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] recv message from " << inet_ntoa(in_addr{host});
-        std::cout << ", length: " << nread << std::endl;
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] recv message from " << inet_ntoa(in_addr{host});
+        // std::cout << ", length: " << nread << std::endl;
         sendMsgToPeer(_inBuffer);
         _inBuffer.clear();
         return E_OK;
@@ -318,15 +318,15 @@ int Postman::downstreamWrite()
         auto nwrite = writeall(_fd, std::string_view(s));
         if (nwrite <= 0)
         {
-            std::cout << "[" << std::this_thread::get_id();
-            std::cout << "][" << _loop->getThreadID();
-            std::cout << "] write error" << std::endl;
+            // std::cout << "[" << std::this_thread::get_id();
+            // std::cout << "][" << _loop->getThreadID();
+            // std::cout << "] write error" << std::endl;
             handleClose();
             return E_ERROR;
         }
-        std::cout << "[" << std::this_thread::get_id();
-        std::cout << "][" << _loop->getThreadID();
-        std::cout << "] send message to local, length: " << nwrite << std::endl;
+        // std::cout << "[" << std::this_thread::get_id();
+        // std::cout << "][" << _loop->getThreadID();
+        // std::cout << "] send message to local, length: " << nwrite << std::endl;
     }
     delEvent(EPOLLOUT);
     return enableReading();
@@ -362,14 +362,19 @@ Postman *Postman::setPeer(std::string_view dst_host, int dst_port)
     if (peer_fd <= 0)
         return nullptr;
 
-    sockaddr_in temp{0};
-    temp.sin_addr = addr;
-    temp.sin_port = dst_port;
-    Postman *p = _loop->addFd(REMOTE_POSTMAN, peer_fd, temp, EPOLLIN | EPOLLOUT);
-    // 从loop取得Postman
+    // 从loop取得空闲的Postman或者new一个
+    Postman *p = _loop->newPostman(REMOTE_POSTMAN, peer_fd);
     assert(p);
+    p->setStatus(CONNECTED);
+    p->host = addr.s_addr;
+    p->port = dst_port;
+    p->updateLastTime();
+    p->setEvents(EPOLLIN|EPOLLOUT);
     p->peer_postman = this;
     peer_postman = p;
+
+    _loop->addFd(p);
+
     return p;
 }
 
