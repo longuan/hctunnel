@@ -15,7 +15,7 @@ private:
     EventLoop                          *_main_loop;
     ThreadPool                         *_io_loops;
     Acceptor                           *_acceptor;
-    std::pair<in_addr_t, int>           _last_count; // 用来防止同一ip瞬间发起的大量连接，导致fd用尽
+    // std::pair<in_addr_t, int>           _last_count; // 用来防止同一ip瞬间发起的大量连接，导致fd用尽
 
     Server();
     ~Server();

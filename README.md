@@ -10,8 +10,6 @@ hctunnel 是一个http tunnel工具，能够同时处理http和https请求。原
 
 
 
-
-
 ### 使用
 
 
@@ -64,17 +62,21 @@ hctunnel的**内部实现**从源文件来看，主要有这几个class：
 
 
 
-**线程安全的考虑**：
+### 线程安全的考虑
 
-来自客户端的每条socket连接都分为两个阶段：accept阶段和IO阶段。其中accept阶段是由主线程处理，也就是Server来处理。IO阶段由其所归属的worker线程处理，连接关闭也发生在worker线程。将两个阶段独立来看都是线程安全的，不需要任何的同步措施。
+来自客户端的每条socket连接都分为两个阶段：accept阶段和IO阶段。其中accept阶段是由主线程处理，也就是Server来处理。IO阶段由其所归属的worker线程处理，连接关闭也发生在所属的worker线程。将两个阶段独立来看都是线程安全的，不需要任何的同步措施。
 
-但是，在accept阶段和IO阶段之间，也就是主线程accept之后，worker线程监听连接上的事件之前，Server需要将这个连接交给某个EventLoop。此时需要考虑线程安全，因为EventLoop会同时被主线程和自己所属的线程调用。保证线程安全，需要找出临界区和互斥资源。临界区很好找，因为Server将连接交给EventLoop只需要调用EventLoop的addFd成员函数。因此，临界区就是addFd成员函数，互斥资源就是addFd函数内所涉及的成员变量。
+但是，在accept阶段和IO阶段之间，也就是主线程accept此socket之后，主线程需要将这个socket交给某个EventLoop，也就是某个worker线程。此时需要考虑线程安全，因为EventLoop中的某些函数会同时被主线程和自己所属的线程调用。为了保证线程安全，需要找出临界区和互斥资源。
 
-同时，EventLoop下所有对互斥资源的访问都要加锁。
+**临界区**就是可能同时被多个线程同时调用的代码，也就是Server将连接交给EventLoop时所调用的代码。**互斥资源**就是临界区中的会被多个线程同时访问的那些数据。Server通过newConnectionCallback成员函数将accept到的socket连接交给线程池中的某个线程。从此得知，newPostman、updateLastTime、setEvents、addFd四个函数有可能同时被两个线程调用，需要加锁保护。host、port只在这里写入一次，之后不会再改变，因此不需要加锁。
 
-![](./img/threadsafecode.png)
+![](./img/threadsafe-servercode.png)
 
+需要注意的是，即使addFd的函数体已经加锁保护，addFd中所使用到的成员变量在其他成员函数中被访问依然需要加锁。否则，同一个成员变量可能会同时被两个线程操作，而出现不可预期的错误。newPostman函数也同样按此处理。
 
+![](./img/threadsafe-addfd.png)
+
+updateLastTime、setEvents两个函数理论上来说，也应该按照addFd那样的处理方式来加锁访问。但是updateLastTime、setEvents是Postman类的成员函数，不同于EventLoop类，Postman类的生命周期从newConnectionCallback函数开始，之后一直交给某个固定的EventLoop，直至消亡。因此，newConnectionCallback函数内调用updateLastTime和setEvents起到了初始化Postman的作用，在之后直到这个Postman消亡，也不会发生有多个线程同时调用同一个Postman实例的updateLastTime和setEvents成员函数的情况。因此，这两个函数以及其中涉及的变量不需要加锁访问。
 
 
 
